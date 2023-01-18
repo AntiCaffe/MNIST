@@ -23,7 +23,7 @@ testloader = DataLoader(testset,batch_size= batchsize,shuffle=True)
 
 correct = 0
 total = 0
-model = torch.load("CNN.pt") ##모델 틀 불러오기 대용
+model = train.CNN().to(device)
 model.load_state_dict(torch.load("CNN_dict.pt"))  ## 모델 가중치 불러오기
 model.eval()
 
