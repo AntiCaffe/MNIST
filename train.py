@@ -42,54 +42,51 @@ dataloader = DataLoader(dataset, batch_size = batchsize, shuffle = True)
 class CNN(nn.Module):
     def __init__(self):
         super(CNN,self).__init__()
+        self.layer = nn.Sequential(
+            nn.Conv2d(1,16,3,padding = 1),
+            nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.Conv2d(16,32,3,padding = 1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2,2),
+            nn.Conv2d(32,64,3,padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2,2)
+        )
+        self.fc_layer = nn.Sequential(
+            nn.Linear(64*7*7, 128),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.Linear(128,64),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Linear(64,10)
+        )
 
-        self.Conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5, stride=1, padding=2)
-        self.ReLU = nn.ReLU();
-        self.MaxPool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1)
-        self.Conv2 = nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1)
-        self.Flatten = nn.Flatten()
-        self.FC1 = nn.Linear(400, 120, bias=True)
-        self.FC2 = nn.Linear(120, 84, bias=True)
-        self.FC3 = nn.Linear(84, 10, bias=True)
-        self.Softmax = nn.Softmax(dim=1)
-        self.layer = nn.Sequential(
-            nn.Conv2d(1,16,3,padding=1)
-        )
-        self.layer = nn.Sequential(
-            self.Conv1,
-            self.ReLU,
-            self.MaxPool,
-            self.Conv2,
-            self.ReLU,
-            self.MaxPool,
-            self.Flatten,
-            self.FC1,
-            self.ReLU,
-            self.FC2,
-            self.ReLU,
-            self.FC3,
-            self.Softmax
-        )
     def forward(self,x):
         out = self.layer(x)
+        out = out.view(batchsize,-1)
+        out = self.fc_layer(out)
         return out
 
 model = CNN().to(device)
+cost_func = nn.CrossEntropyLoss().to(device)
 optimizer = optim.Adam(model.parameters(), lr = lr, betas = (0.9, 0.999))
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,threshold=0.1, patience=1, mode="min")
 loss_graph = []
 
-for k in range(epochs +1):
-    for i, sample in enumerate(dataloader):
-        (x,y) = sample
-        x = x.unsqueeze(dim = 1)
-        z = model(x.float().to(device))
-        cost = f.cross_entropy(z,y.to(device)).to(device)
-        optimizer.zero_grad() ##미분 계수 0으로 만듬
+for i in range(1, epochs+1):
+    for _,[image,label] in enumerate(dataloader):
+        x = image.to(device)
+        y = image.to(device)
+
+        optimizer.zero_grad()
+        output = model.forward(x)
+        cost = cost_func(output,y)
         cost.backward()
         optimizer.step()
-        if i == 49:
-            print("{0}/{1}, {3}/{2}, {4}" .format(k,epochs,int(trainset.data.size(0)/batchsize),i,cost.item()))
-            loss_graph.append(cost.item())
 
-torch.save(model,"CNN.pt")
-torch.save(model.state_dict(),'CNN_dict.pt')
+    scheduler.step(cost)
+    print('Epoch : {}, Loss : {}, LR: {}'.format(i,cost.item(),scheduler.optimizer.state_dict()['param_groups'][0]['lr']))
