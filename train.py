@@ -24,6 +24,7 @@ trainset = dsets.MNIST(root='dataset/',
                        transform= transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize(mean=(0.1307,), std=(0.3081,))]),
+                       target_transform=None,
                        download=True)
 
 
@@ -36,7 +37,7 @@ batchsize = 100
 
 
 dataset = TensorDataset(trainset.data,trainset.targets)
-dataloader = DataLoader(dataset, batch_size = batchsize, shuffle = True)
+dataloader = DataLoader(trainset, batch_size = batchsize, shuffle = True,drop_last=True)
 
 
 class CNN(nn.Module):
@@ -57,10 +58,10 @@ class CNN(nn.Module):
         )
         self.fc_layer = nn.Sequential(
             nn.Linear(64*7*7, 128),
-            nn.BatchNorm2d(128),
+            nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Linear(128,64),
-            nn.BatchNorm2d(64),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Linear(64,10)
         )
@@ -76,11 +77,11 @@ cost_func = nn.CrossEntropyLoss().to(device)
 optimizer = optim.Adam(model.parameters(), lr = lr, betas = (0.9, 0.999))
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,threshold=0.1, patience=1, mode="min")
 loss_graph = []
-
+"""
 for i in range(1, epochs+1):
     for _,[image,label] in enumerate(dataloader):
         x = image.to(device)
-        y = image.to(device)
+        y = label.to(device)
 
         optimizer.zero_grad()
         output = model.forward(x)
@@ -90,3 +91,5 @@ for i in range(1, epochs+1):
 
     scheduler.step(cost)
     print('Epoch : {}, Loss : {}, LR: {}'.format(i,cost.item(),scheduler.optimizer.state_dict()['param_groups'][0]['lr']))
+torch.save(model.state_dict(),'CNN_dict.pt')
+"""
